@@ -1,0 +1,4 @@
+SafetyHook v0.7.0 amalgamated (with Zydis)
+Source: https://github.com/cursey/safetyhook/releases/download/v0.7.0/safetyhook-amalgamated-zydis.zip
+License: BSL-1.0 (see LICENSE)
+Fetched: 2026-10-05

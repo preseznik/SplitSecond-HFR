@@ -1,0 +1,7 @@
+# build output
+/build/
+/build-*/
+*.user
+.vs/
+# logs written next to the game when testing
+hfr_logs/
