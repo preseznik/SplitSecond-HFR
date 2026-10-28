@@ -46,6 +46,23 @@ bool PatchSet::Write(uintptr_t va, const std::vector<uint8_t>& bytes) {
     return true;
 }
 
+// Writes every patch's new bytes (apply) or original bytes (!apply). If a write fails, the patches already written
+// are put back, so the set is never left half-applied.
+bool PatchSet::WriteAll(bool apply) {
+    for (size_t i = 0; i < patches_.size(); ++i) {
+        const Patch& p = patches_[i];
+        if (Write(p.va, apply ? p.repl : p.expect)) continue;
+        Log("Patch %s: write at %08X failed (error %lu)", name_.c_str(), static_cast<unsigned>(p.va), GetLastError());
+        while (i-- > 0) {
+            const Patch& q = patches_[i];
+            if (!Write(q.va, apply ? q.expect : q.repl))
+                Log("Patch %s: rollback at %08X FAILED - bytes are now mixed", name_.c_str(), static_cast<unsigned>(q.va));
+        }
+        return false;
+    }
+    return true;
+}
+
 bool PatchSet::Apply() {
     if (applied_) return true;
     if (!g_patchingAllowed) {
@@ -57,7 +74,10 @@ bool PatchSet::Apply() {
         Log("Patch %s: NOT applied (%s)", name_.c_str(), why.c_str());
         return false;
     }
-    for (const auto& p : patches_) Write(p.va, p.repl);
+    if (!WriteAll(true)) {
+        Log("Patch %s: NOT applied (write failed, rolled back)", name_.c_str());
+        return false;
+    }
     applied_ = true;
     return true;
 }
@@ -69,7 +89,10 @@ bool PatchSet::Revert() {
         Log("Patch %s: NOT reverted (%s)", name_.c_str(), why.c_str());
         return false;
     }
-    for (const auto& p : patches_) Write(p.va, p.expect);
+    if (!WriteAll(false)) {
+        Log("Patch %s: NOT reverted (write failed, rolled back)", name_.c_str());
+        return false;
+    }
     applied_ = false;
     return true;
 }

@@ -18,7 +18,7 @@ not frame interpolation — while keeping the game's speed and physics exactly a
 
 ## Status
 
-Version 0.1.3 — early release. Verified: steady 60 FPS, physics and handling, game speed, live 30 ↔ 60 switching.
+Version 0.1.4 — early release. Verified: steady 60 FPS, physics and handling, game speed, live 30 ↔ 60 switching.
 Not yet verified at 60 FPS: every Power Play (especially multi-stage ones), shortcut doors and ramps, all tracks.
 Please report anything that behaves differently at 60 than at 30 (F8 makes comparing easy).
 
@@ -32,7 +32,7 @@ For 120 Hz displays: run the mod at 60 FPS and add frame generation on top (e.g.
 
 ## Install
 
-1. Download `SplitSecond-HFR-v0.1.3.zip` from the [Releases](../../releases) page.
+1. Download `SplitSecond-HFR-v0.1.4.zip` from the [Releases](../../releases) page.
 2. Copy `DXFreezerServer.dll` and `SplitSecondHFR.ini` into the game folder
    (Steam → right-click Split/Second → Manage → Browse local files).
 3. Start the game.

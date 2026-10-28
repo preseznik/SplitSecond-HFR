@@ -93,7 +93,11 @@ void InstallFixAi30() {
         Log("FIX-003 AI 30 Hz: disabled in INI");
         return;
     }
-    if (!g_patchingAllowed) return;
+    if (!g_patchingAllowed) {
+        Log("FIX-003 AI 30 Hz: patching disabled -> not installed");
+        g_cfg.fixAi30 = false; // so the "Active:" summary says off
+        return;
+    }
     o_AiUpdate = reinterpret_cast<AiUpdate_t>(kAiUpdate);
     if (SwapSlot(kAiVtblSlot, kAiUpdate, reinterpret_cast<void*>(&AiUpdateGate)))
         Log("FIX-003 AI 30 Hz: installed (cAIPlayer::Update gated to >= 2 ticks)");

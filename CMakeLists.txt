@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(SplitSecondHFR VERSION 0.1.3 LANGUAGES C CXX)
+project(SplitSecondHFR VERSION 0.1.4 LANGUAGES C CXX)
 
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
   message(FATAL_ERROR "Split/Second is a 32-bit game: configure with -A Win32")

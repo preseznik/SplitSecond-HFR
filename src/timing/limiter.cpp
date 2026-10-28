@@ -9,6 +9,7 @@
 // 0x558947 it instead waits until the exact deadline (high-resolution waitable timer + short spin).
 #include <intrin.h>
 
+#include <cstring>
 #include <safetyhook.hpp>
 
 #pragma intrinsic(_ReturnAddress)
@@ -30,6 +31,9 @@ HANDLE g_waitTimer = nullptr;
 constexpr uintptr_t kLimiterSleepRet = 0x00558947; // return address of the limiter's Sleep call
 constexpr uintptr_t kQpcAtTimerRead = 0x00D72358;  // int64 QPC value of the frame timer's last read
 constexpr uintptr_t kLimiterAcc = 0x00D747F4;      // f32 accumulator
+constexpr uintptr_t kTicksHookVa = 0x00558984;     // after the tick clamp, before Update(ticks)
+// mov eax,[esp+14h]; mov [edi+8],eax — the whole instructions the hook's 5-byte jump replaces (same in all dumps)
+constexpr uint8_t kTicksHookBytes[] = {0x8B, 0x44, 0x24, 0x14, 0x89, 0x47, 0x08};
 
 void BuildPatches() {
     const auto period = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&g_period));
@@ -95,6 +99,18 @@ void OnTicks(safetyhook::Context& ctx) {
     FixAi30OnTicks(g_ticks);
 }
 
+void InstallTicksHook() {
+    uint8_t cur[sizeof(kTicksHookBytes)];
+    if (!SafeRead(reinterpret_cast<const void*>(kTicksHookVa), cur, sizeof(cur)) ||
+        memcmp(cur, kTicksHookBytes, sizeof(cur)) != 0) {
+        Log("Limiter: bytes at %08X differ -> ticks hook NOT installed (AI 30 Hz fix inactive)",
+            static_cast<unsigned>(kTicksHookVa));
+        return;
+    }
+    if (auto h = safetyhook::MidHook::create(reinterpret_cast<void*>(kTicksHookVa), &OnTicks)) g_ticksHook = std::move(*h);
+    else Log("Limiter: ticks hook FAILED (AI 30 Hz fix inactive)");
+}
+
 } // namespace
 
 // Simulation time advanced this frame (ticks / 60). Equals 1/30 in vanilla 30 Hz mode, so per-frame code that
@@ -105,6 +121,11 @@ int g_ticks = 2;
 void LimiterInit() {
     BuildPatches();
     g_waitTimer = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    if (!g_patchingAllowed) {
+        // Observe-only: the limiter data the Sleep hook reads and the bytes the tick hook replaces are unverified.
+        Log("Limiter: patching disabled -> no Sleep hook, no tick capture");
+        g_cfg.preciseLimiter = false;
+    }
     if (g_cfg.preciseLimiter && !g_cfg.preciseForce && WineVersion()) {
         // Under Wine/Proton (seen with Proton-CachyOS 11 + ntsync) the precise path ends in a host-side heap abort at
         // the main menu (GitHub issue #1); the game's own Sleep-based pacing works fine there.
@@ -120,10 +141,7 @@ void LimiterInit() {
         g_cfg.preciseLimiter = false;
     }
     // Tick capture is a code patch in the main loop; install it only when a fix consumes the tick count.
-    if (g_cfg.fixAi30) {
-        if (auto h = safetyhook::MidHook::create(reinterpret_cast<void*>(0x00558984), &OnTicks)) g_ticksHook = std::move(*h);
-        else Log("Limiter: ticks hook FAILED (AI 30 Hz fix inactive)");
-    }
+    if (g_cfg.fixAi30 && g_patchingAllowed) InstallTicksHook();
     std::string why;
     Log("Limiter: FIX-001 %s; precise pacing %s; requested mode %d Hz", g_fix001.Verify(&why) ? "verified" : why.c_str(),
         g_cfg.preciseLimiter ? "on" : "off", g_cfg.mode);

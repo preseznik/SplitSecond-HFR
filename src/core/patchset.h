@@ -30,6 +30,7 @@ private:
         std::vector<uint8_t> expect, repl;
     };
     static bool Write(uintptr_t va, const std::vector<uint8_t>& bytes);
+    bool WriteAll(bool apply); // all patches or none: rolls back on a failed write
     std::string name_;
     std::vector<Patch> patches_;
     bool applied_ = false;
